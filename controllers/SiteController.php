@@ -8,6 +8,8 @@ use yii\web\Controller;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
 use app\models\ContactForm;
+use app\models\RegisterForm;
+use app\models\User;
 
 class SiteController extends Controller
 {
@@ -111,6 +113,44 @@ class SiteController extends Controller
         return $this->render('contact', [
             'model' => $model,
         ]);
+    }
+
+    /**
+     * Displays register page
+     * 
+     * @return string
+     */
+    public function actionRegister(){
+        $model = new RegisterForm();
+        if($model->load(Yii::$app->request->post()) && $model->validate()){
+            $user = new User();
+            $user->username = $model->username;
+            $user->password = md5($model->password);
+            $user->email = $model->email;
+            $user->token = RegisterForm::generateCode(Yii::$app->params['activationCodeLength']);
+            $user->active = FALSE;
+            $user->role = User::ROLE_USER;
+            if($user->save()){
+                Yii::$app->session->setFlash('registerFormSubmitted');
+                return $this->refresh();
+            }
+        }
+        return $this->render('register', [
+            'model' => $model,
+        ]);
+    }
+    /**
+     * Displays activation page
+     */
+    public function actionActivate(){
+        $user = User::findOne(['token' => Yii::$app->request->getQueryParam('code')]);
+        if($user != NULL){
+            $user->active = TRUE;
+            if($user->save()){
+                Yii::$app->session->setFlash('userActivated');
+            }
+        }
+        return $this->render('activation', ['code' => Yii::$app->request->getQueryParam('code')] );
     }
 
     /**
